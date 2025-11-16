@@ -1,0 +1,37 @@
+name: Deploy to IIS on Windows Runner
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy website to IIS
+    runs-on: self-hosted   # Your Windows self-hosted runner
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Stop IIS website
+        run: |
+          Import-Module WebAdministration
+          Stop-Website -Name "MyWebsite"
+        shell: powershell
+
+      - name: Clear existing IIS folder
+        run: |
+          Remove-Item -Path "C:\inetpub\wwwroot\*" -Recurse -Force
+        shell: powershell
+
+      - name: Copy new website files
+        run: |
+          Copy-Item -Path "${{ github.workspace }}\*" -Destination "C:\inetpub\wwwroot" -Recurse -Force
+        shell: powershell
+
+      - name: Start IIS website
+        run: |
+          Import-Module WebAdministration
+          Start-Website -Name "MyWebsite"
+        shell: powershell
