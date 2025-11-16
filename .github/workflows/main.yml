@@ -8,30 +8,50 @@ on:
 jobs:
   deploy:
     name: Deploy website to IIS
-    runs-on: self-hosted   # Your Windows self-hosted runner
+    runs-on: self-hosted
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Stop IIS website
+      - name: Stop IIS website if it exists
+        shell: powershell
         run: |
           Import-Module WebAdministration
-          Stop-Website -Name "MyWebsite"
-        shell: powershell
+          if (Test-Path "IIS:\Sites\MyWebsite") {
+            Write-Host "Stopping IIS site MyWebsite..."
+            Stop-Website -Name "MyWebsite"
+          } else {
+            Write-Host "IIS site MyWebsite does not exist. Skipping Stop-Website."
+          }
 
       - name: Clear existing IIS folder
-        run: |
-          Remove-Item -Path "C:\inetpub\wwwroot\*" -Recurse -Force
         shell: powershell
+        run: |
+          if (Test-Path "C:\inetpub\wwwroot") {
+            Remove-Item -Path "C:\inetpub\wwwroot\*" -Recurse -Force
+          }
 
       - name: Copy new website files
+        shell: powershell
         run: |
           Copy-Item -Path "${{ github.workspace }}\*" -Destination "C:\inetpub\wwwroot" -Recurse -Force
-        shell: powershell
 
-      - name: Start IIS website
+      - name: Create IIS website if it does not exist
+        shell: powershell
         run: |
           Import-Module WebAdministration
-          Start-Website -Name "MyWebsite"
+          if (-not (Test-Path "IIS:\Sites\MyWebsite")) {
+            Write-Host "Creating IIS site MyWebsite..."
+            New-Website -Name "MyWebsite" -Port 80 -PhysicalPath "C:\inetpub\wwwroot" -Force
+          }
+
+      - name: Start IIS website
         shell: powershell
+        run: |
+          Import-Module WebAdministration
+          if (Test-Path "IIS:\Sites\MyWebsite") {
+            Start-Website -Name "MyWebsite"
+          } else {
+            Write-Host "Cannot start IIS site MyWebsite because it does not exist."
+          }
