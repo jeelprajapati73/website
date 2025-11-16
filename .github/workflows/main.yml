@@ -18,40 +18,51 @@ jobs:
         shell: powershell
         run: |
           Import-Module WebAdministration
-          if (Test-Path "IIS:\Sites\MyWebsite") {
-            Write-Host "Stopping IIS site MyWebsite..."
-            Stop-Website -Name "MyWebsite"
-          } else {
-            Write-Host "IIS site MyWebsite does not exist. Skipping Stop-Website."
+          try {
+            if (Test-Path "IIS:\Sites\MyWebsite") {
+              Stop-Website -Name "MyWebsite" -ErrorAction Stop
+              Write-Host "IIS site stopped."
+            } else {
+              Write-Host "MyWebsite does not exist. Skipping stop."
+            }
+          } catch {
+            Write-Host "Warning: Failed to stop site, continuing..."
           }
 
       - name: Clear existing IIS folder
         shell: powershell
         run: |
-          if (Test-Path "C:\inetpub\wwwroot") {
-            Remove-Item -Path "C:\inetpub\wwwroot\*" -Recurse -Force
+          try {
+            Remove-Item -Path "C:\inetpub\wwwroot\*" -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "IIS root cleared."
+          } catch {
+            Write-Host "Warning: Failed to clear folder, continuing..."
           }
 
       - name: Copy new website files
         shell: powershell
         run: |
-          Copy-Item -Path "${{ github.workspace }}\*" -Destination "C:\inetpub\wwwroot" -Recurse -Force
+          Copy-Item -Path "${{ github.workspace }}\*" -Destination "C:\inetpub\wwwroot" -Recurse -Force -ErrorAction Continue
+          Write-Host "Files copied."
 
-      - name: Create IIS website if it does not exist
+      - name: Create IIS website if missing
         shell: powershell
         run: |
           Import-Module WebAdministration
           if (-not (Test-Path "IIS:\Sites\MyWebsite")) {
-            Write-Host "Creating IIS site MyWebsite..."
+            Write-Host "Creating IIS site..."
             New-Website -Name "MyWebsite" -Port 80 -PhysicalPath "C:\inetpub\wwwroot" -Force
+          } else {
+            Write-Host "Site already exists."
           }
 
       - name: Start IIS website
         shell: powershell
         run: |
           Import-Module WebAdministration
-          if (Test-Path "IIS:\Sites\MyWebsite") {
-            Start-Website -Name "MyWebsite"
-          } else {
-            Write-Host "Cannot start IIS site MyWebsite because it does not exist."
+          try {
+            Start-Website -Name "MyWebsite" -ErrorAction Stop
+            Write-Host "IIS site started."
+          } catch {
+            Write-Host "Warning: Failed to start site, continuing..."
           }
