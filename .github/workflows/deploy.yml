@@ -22,3 +22,11 @@ jobs:
           source: "/*"  # All files in your repo
           target: "/var/www/mywebsite/"
           rm: true
+      - name: Restart Apache
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_DNS }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: 
+sudo systemctl restart apache2
